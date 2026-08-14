@@ -1,10 +1,13 @@
 import feedparser
-import tweepy
+import requests
 import json
 import os
 
 POSTED_FILE = "posted_links.json"
 FEED_URL = "https://kkslech.com/feed/"
+
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_CHANNEL = os.environ["TELEGRAM_CHANNEL"]
 
 def load_posted():
     if os.path.exists(POSTED_FILE):
@@ -16,16 +19,18 @@ def save_posted(links):
     with open(POSTED_FILE, "w") as f:
         json.dump(list(links), f)
 
+def send_to_telegram(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHANNEL,
+        "text": text
+    }
+    response = requests.post(url, data=payload)
+    response.raise_for_status()
+
 def main():
     posted = load_posted()
     feed = feedparser.parse(FEED_URL)
-
-    client = tweepy.Client(
-        consumer_key=os.environ["API_KEY"],
-        consumer_secret=os.environ["API_SECRET"],
-        access_token=os.environ["ACCESS_TOKEN"],
-        access_token_secret=os.environ["ACCESS_TOKEN_SECRET"]
-    )
 
     new_posted = set(posted)
 
@@ -33,7 +38,7 @@ def main():
         if entry.link not in posted:
             title = entry.title
             text = f"{title}\n{entry.link}"
-            client.create_tweet(text=text)
+            send_to_telegram(text)
             new_posted.add(entry.link)
             print(f"Opublikowano: {entry.link}")
 
