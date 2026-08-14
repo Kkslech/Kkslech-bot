@@ -6,8 +6,9 @@ import os
 POSTED_FILE = "posted_links.json"
 FEED_URL = "https://kkslech.com/feed/"
 
-TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-TELEGRAM_CHANNEL = os.environ["TELEGRAM_CHANNEL"]
+# Tutaj dodaliśmy czyszczenie tokenu z niewidzialnych znaków i spacji
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"].replace('\u200b', '').strip()
+TELEGRAM_CHANNEL = os.environ["TELEGRAM_CHANNEL"].strip()
 
 def load_posted():
     if os.path.exists(POSTED_FILE):
