@@ -1,48 +1,38 @@
-import feedparser
-import requests
-import json
-import os
+name: KKSLech Bot
 
-POSTED_FILE = "posted_links.json"
-FEED_URL = "https://kkslech.com/feed/"
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
-TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-TELEGRAM_CHANNEL = os.environ["TELEGRAM_CHANNEL"]
+permissions:
+  contents: write
 
-def load_posted():
-    if os.path.exists(POSTED_FILE):
-        with open(POSTED_FILE, "r") as f:
-            return set(json.load(f))
-    return set()
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-def save_posted(links):
-    with open(POSTED_FILE, "w") as f:
-        json.dump(list(links), f)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-def send_to_telegram(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHANNEL,
-        "text": text
-    }
-    response = requests.post(url, data=payload)
-    response.raise_for_status()
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-def main():
-    posted = load_posted()
-    feed = feedparser.parse(FEED_URL)
+      - name: Run bot
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+        run: python bot.py
 
-    new_posted = set(posted)
-
-    for entry in reversed(feed.entries):
-        if entry.link not in posted:
-            title = entry.title
-            text = f"{title}\n{entry.link}"
-            send_to_telegram(text)
-            new_posted.add(entry.link)
-            print(f"Opublikowano: {entry.link}")
-
-    save_posted(new_posted)
-
-if __name__ == "__main__":
-    main()
+      - name: Commit updated posted_links.json
+        run: |
+          git config --global user.name "kkslech-bot"
+          git config --global user.email "bot@users.noreply.github.com"
+          git add posted_links.json
+          git diff --staged --quiet || git commit -m "Update posted links"
+          git push
