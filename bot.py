@@ -2,11 +2,11 @@ import feedparser
 import requests
 import json
 import os
+import time
 
 POSTED_FILE = "posted_links.json"
 FEED_URL = "https://kkslech.com/feed/"
 
-# Tutaj dodaliśmy czyszczenie tokenu z niewidzialnych znaków i spacji
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"].replace('\u200b', '').strip()
 TELEGRAM_CHANNEL = os.environ["TELEGRAM_CHANNEL"].strip()
 
@@ -39,11 +39,18 @@ def main():
         if entry.link not in posted:
             title = entry.title
             text = f"{title}\n{entry.link}"
-            send_to_telegram(text)
-            new_posted.add(entry.link)
-            print(f"Opublikowano: {entry.link}")
-
-    save_posted(new_posted)
+            
+            try:
+                send_to_telegram(text)
+                new_posted.add(entry.link)
+                print(f"Opublikowano: {entry.link}")
+                # Zapisujemy od razu po każdym udanym poście, żeby nie stracić postępu
+                save_posted(new_posted)
+                # Czekamy 3 sekundy, żeby Telegram nas nie zablokował za spam
+                time.sleep(3)
+            except requests.exceptions.HTTPError as e:
+                print(f"Błąd podczas wysyłania: {e}")
+                break # Zatrzymujemy pętlę, jeśli Telegram nas zablokuje, żeby spróbować za 15 minut
 
 if __name__ == "__main__":
     main()
